@@ -4,16 +4,18 @@ using UnityEngine;
 using System;
 using System.Threading;
 
-public class ThreadedDataRequester : MonoBehaviour { // MonoBehavior is used to allow for async.
+public class ThreadedDataRequester : MonoBehaviour
+{
+	// MonoBehavior is used to allow for async.
 	// Singleton monobehavior instance attached to gamemanager allows for cross scene use without duplicates.
 	public static ThreadedDataRequester Instance;
-	
+
 	// Categorized queue holds data requests and makes sure it's loaded by category priority.
 	Dictionary<QueueCategory, SpecialQueue<ThreadInfo>[]> categorizedQueues = new Dictionary<QueueCategory, SpecialQueue<ThreadInfo>[]>();
-	
+
 	bool activeThreadDequeueLoop;
 	float threadDequeuesPerSecond = 50; // We will change this depending if the player is loading or playing.
-	float threadDequeueLoopSpeed => 1/threadDequeuesPerSecond; // Dequeue Speed for threaded data requests.
+	float threadDequeueLoopSpeed => 1 / threadDequeuesPerSecond; // Dequeue Speed for threaded data requests.
 
 	public enum QueueCategory
 	{
@@ -23,11 +25,11 @@ public class ThreadedDataRequester : MonoBehaviour { // MonoBehavior is used to 
 		Entity,
 		Default
 	}
-	
+
 	public enum QueuePriority
 	{
 		// These iterate in this order so dont mix them up
-		
+
 		High, // Load first.
 		Medium, // Load once high priority object have loaded.
 		Low, // Load after everything else has loaded.
@@ -39,11 +41,11 @@ public class ThreadedDataRequester : MonoBehaviour { // MonoBehavior is used to 
 
 	private void Start()
 	{
-		if(!Instance) Instance = this;
+		if (!Instance) Instance = this;
 
 		Setup();
-		
-		if(!activeThreadDequeueLoop)StartCoroutine("ThreadDequeueLoop");
+
+		if (!activeThreadDequeueLoop) StartCoroutine("ThreadDequeueLoop");
 	}
 
 	private void Setup()
@@ -54,12 +56,13 @@ public class ThreadedDataRequester : MonoBehaviour { // MonoBehavior is used to 
 			{
 				// Gives each queue category its own array of priority queues.
 				categorizedQueues.Add(queueCategory, new SpecialQueue<ThreadInfo>[Enum.GetValues(typeof(QueuePriority)).Length]);
-				
-				for (var i = 0; i < categorizedQueues[queueCategory].Length; i++) {
+
+				for (var i = 0; i < categorizedQueues[queueCategory].Length; i++)
+				{
 					categorizedQueues[queueCategory][i] = new SpecialQueue<ThreadInfo>();
 				}
-				
-				Debug.Log("Category Added: "+queueCategory);
+
+				Debug.Log("Category Added: " + queueCategory);
 			}
 		}
 	}
@@ -68,7 +71,7 @@ public class ThreadedDataRequester : MonoBehaviour { // MonoBehavior is used to 
 	{
 		Start();
 	}
-	
+
 	public void SetThreadDequeuesPerSecond(float value)
 	{
 		threadDequeuesPerSecond = value;
@@ -77,12 +80,10 @@ public class ThreadedDataRequester : MonoBehaviour { // MonoBehavior is used to 
 	public static ThreadInfo RequestData(Func<object> generateData, Action<object> callback, QueueCategory queueCategory = QueueCategory.Default, QueuePriority queuePriority = QueuePriority.High)
 	{
 		ThreadInfo queueThreadInfo = new ThreadInfo();
-			
-		ThreadStart threadStart = delegate {
-			queueThreadInfo = Instance.DataThread (generateData, callback, queueCategory, queuePriority);
-		};
 
-		new Thread (threadStart).Start ();
+		ThreadStart threadStart = delegate { queueThreadInfo = Instance.DataThread(generateData, callback, queueCategory, queuePriority); };
+
+		new Thread(threadStart).Start();
 
 		return queueThreadInfo;
 	}
@@ -92,9 +93,9 @@ public class ThreadedDataRequester : MonoBehaviour { // MonoBehavior is used to 
 		object data = generateData();
 		ThreadInfo queueThreadInfo = new ThreadInfo(callback, data);
 
-		lock (categorizedQueues[queueCategory][(int)queuePriority])
+		lock (categorizedQueues[queueCategory][(int) queuePriority])
 		{
-			categorizedQueues[queueCategory][(int)queuePriority].Enqueue(queueThreadInfo);
+			categorizedQueues[queueCategory][(int) queuePriority].Enqueue(queueThreadInfo);
 		}
 
 		return queueThreadInfo;
@@ -103,10 +104,10 @@ public class ThreadedDataRequester : MonoBehaviour { // MonoBehavior is used to 
 	IEnumerator ThreadDequeueLoop()
 	{
 		activeThreadDequeueLoop = true;
-		while (enabled)
+		while (enabled) // checks that the gameobject is enabled
 		{
 			// Loop through category queues.
-			foreach(QueueCategory queueCategory in Enum.GetValues(typeof(QueueCategory)))
+			foreach (QueueCategory queueCategory in Enum.GetValues(typeof(QueueCategory)))
 			{
 				// Loop through priority queues within category.
 				for (int i = 0; i < categorizedQueues[queueCategory].Length; i++)
@@ -122,55 +123,17 @@ public class ThreadedDataRequester : MonoBehaviour { // MonoBehavior is used to 
 
 			yield return new WaitForSeconds(threadDequeueLoopSpeed);
 		}
+
 		activeThreadDequeueLoop = false;
 	}
 
-	private int TotalHighPriorityQueueCount()
-	{
-		// Should just introduce counter to enqueue and dequeue.
-		int totalHighPriorityQueueCount = 0;
-		foreach(QueueCategory enumType in Enum.GetValues(typeof(QueueCategory)))
-        {
-        	// Loop through priority queues within category.
-        	for (int i = 0; i < categorizedQueues[enumType].Length; i++)
-        	{
-        		if (i == 0) totalHighPriorityQueueCount += categorizedQueues[enumType][i].Count;
-        	}
-        }
-		return totalHighPriorityQueueCount;
-	}
-
-//	private void StartLoading()
-//	{
-//		loading = true;
-//		if (OnStartedLoading != null) OnStartedLoading();
-//	}
-//
-//	private void StopLoading()
-//	{
-//		loading = false;
-//		if (OnFinishedLoading != null) OnFinishedLoading();
-//	}
-
 	private void ThreadDequeue(SpecialQueue<ThreadInfo> dataQueue)
 	{
-			ThreadInfo threadInfo = dataQueue.Dequeue ();
-			
-			if (threadInfo.parameter == null || threadInfo.callback == null) return;
-			
-			threadInfo.callback (threadInfo.parameter);
-	}
+		ThreadInfo threadInfo = dataQueue.Dequeue();
 
-	public struct ThreadInfo {
-		public readonly Action<object> callback;
-		public readonly object parameter;
+		if (threadInfo.parameter == null || threadInfo.callback == null) return;
 
-		public ThreadInfo (Action<object> callback, object parameter)
-		{
-			this.callback = callback;
-			this.parameter = parameter;
-		}
-
+		threadInfo.callback(threadInfo.parameter);
 	}
 
 	public void ClearTerrainQueues()
@@ -186,34 +149,48 @@ public class ThreadedDataRequester : MonoBehaviour { // MonoBehavior is used to 
 		// To check for requests that no longer need to be loaded.
 		bool stillInQueue = false;
 		// Loop through priority queues within category.
-        for (int i = 0; i < categorizedQueues[QueueCategory.Terrain].Length; i++)
-        {
-	        if (categorizedQueues[QueueCategory.Terrain][i].Contains(requestedMeshThreadInfo))
-	        {
-		        stillInQueue = true;
-		        break;
-	        }
-        }
+		for (int i = 0; i < categorizedQueues[QueueCategory.Terrain].Length; i++)
+		{
+			if (categorizedQueues[QueueCategory.Terrain][i].Contains(requestedMeshThreadInfo))
+			{
+				stillInQueue = true;
+				break;
+			}
+		}
 
-        return stillInQueue;
+		return stillInQueue;
 	}
 
 	public void RemoveFromQueue(ThreadInfo requestedMeshThreadInfo)
 	{
 		// To cancel requests that no longer need to be loaded.
-        for (int i = 0; i < categorizedQueues[QueueCategory.Terrain].Length; i++)
-        {
-	        if (categorizedQueues[QueueCategory.Terrain][i].Contains(requestedMeshThreadInfo))
-	        {
-		        categorizedQueues[QueueCategory.Terrain][i].Remove(requestedMeshThreadInfo);
-		        break;
-	        }
-        }
+		for (int i = 0; i < categorizedQueues[QueueCategory.Terrain].Length; i++)
+		{
+			if (categorizedQueues[QueueCategory.Terrain][i].Contains(requestedMeshThreadInfo))
+			{
+				categorizedQueues[QueueCategory.Terrain][i].Remove(requestedMeshThreadInfo);
+				break;
+			}
+		}
+	}
+
+	public struct ThreadInfo
+	{
+		public readonly Action<object> callback;
+		public readonly object parameter;
+
+		public ThreadInfo(Action<object> callback, object parameter)
+		{
+			this.callback = callback;
+			this.parameter = parameter;
+		}
+
 	}
 }
 
 public class SpecialQueue<T>
 {
+	// Introduced to allow for queue to find and remove requests that no longer need to be loaded.
 	LinkedList<T> list = new LinkedList<T>();
 
 	public void Enqueue(T t)
@@ -239,13 +216,16 @@ public class SpecialQueue<T>
 		return list.Remove(t);
 	}
 
-	public int Count { get { return list.Count; } }
+	public int Count
+	{
+		get { return list.Count; }
+	}
 
 	public bool Contains(T t)
 	{
 		return list.Contains(t);
 	}
-	
+
 	public void Clear()
 	{
 		list = new LinkedList<T>();
