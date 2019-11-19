@@ -3,6 +3,8 @@
 This is a preview resource. The bulk of the code is private and will be utilized in a future game.
 You can preview the queue, async coroutine, and multithreading system within ThreadedDataRequester.cs file.
 
+Sorry for the sub par .gif quality.
+
 ### World Preview
 ![World Preview](preview.png)
 
